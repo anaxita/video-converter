@@ -121,11 +121,11 @@ func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video) {
 	v.LocalPathOrig = f.Name()
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(5)
 
-	//go vc.p1080(&wg, v)
-	//go vc.p720(&wg, v)
-	//go vc.p480(&wg, v)
+	go vc.p1080(&wg, v)
+	go vc.p720(&wg, v)
+	go vc.p480(&wg, v)
 	go vc.p360(&wg, v)
 	go vc.pPreview(&wg, v)
 
