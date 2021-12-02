@@ -32,12 +32,8 @@ type DB struct {
 }
 
 func New(pathToConfig string) (*App, error) {
-	var err error
-	if pathToConfig != "" {
-		err = godotenv.Load(pathToConfig)
-	} else {
-		err = godotenv.Load()
-	}
+	err := godotenv.Load(pathToConfig)
+
 	if err != nil {
 		return nil, err
 	}
