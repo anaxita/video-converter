@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"io"
 	"log"
 	"os"
@@ -18,6 +19,9 @@ import (
 )
 
 func main() {
+	pathToConfig := flag.String("c", "./.env", "path to .env config")
+	flag.Parse()
+
 	log.Println("Program is started")
 	now := time.Now()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -28,7 +32,7 @@ func main() {
 	defer close(shutdown)
 
 	// configs
-	c, err := bootstrap.New()
+	c, err := bootstrap.New(*pathToConfig)
 	if err != nil {
 		log.Fatalln("Config load:", err)
 	}
