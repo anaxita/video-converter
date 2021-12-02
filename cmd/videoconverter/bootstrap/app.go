@@ -43,7 +43,7 @@ func New() (*App, error) {
 	c.LogDir = os.Getenv("LOG_DIR")
 	c.Temp = os.Getenv("TMP_DIR")
 
-	if err = os.Mkdir(c.Temp, os.FileMode(0776)); !os.IsExist(err) {
+	if err = os.Mkdir(c.Temp, os.FileMode(0666)); !os.IsExist(err) {
 		return nil, err
 	}
 
