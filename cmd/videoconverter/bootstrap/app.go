@@ -31,8 +31,13 @@ type DB struct {
 	Password string
 }
 
-func New() (*App, error) {
-	err := godotenv.Load()
+func New(pathToConfig string) (*App, error) {
+	var err error
+	if pathToConfig != "" {
+		err = godotenv.Load(pathToConfig)
+	} else {
+		err = godotenv.Load()
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -42,6 +47,10 @@ func New() (*App, error) {
 	c.ENV = os.Getenv("ENV")
 	c.LogDir = os.Getenv("LOG_DIR")
 	c.Temp = os.Getenv("TMP_DIR")
+
+	if err = os.Mkdir(c.LogDir, os.FileMode(0666)); !os.IsExist(err) {
+		return nil, err
+	}
 
 	if err = os.Mkdir(c.Temp, os.FileMode(0666)); !os.IsExist(err) {
 		return nil, err
