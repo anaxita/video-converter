@@ -72,11 +72,11 @@ func (e *VideoEncoder) CreatePreview(tmp, filePath string) (string, error) {
 	cmd := exec.Command(
 		"ffmpeg",
 		"-y",
-		"-i",
 		"-ss",
 		"00:00:00",
 		"-to",
 		"00:03:00",
+		"-i",
 		filePath,
 		"-c",
 		"copy",
