@@ -43,11 +43,11 @@ func New(pathToConfig string) (*App, error) {
 	c.LogDir = os.Getenv("LOG_DIR")
 	c.Temp = os.Getenv("TMP_DIR")
 
-	if err = os.Mkdir(c.LogDir, os.FileMode(0666)); err != nil && !os.IsExist(err) {
+	if err = os.Mkdir(c.LogDir, os.FileMode(0766)); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
-	if err = os.Mkdir(c.Temp, os.FileMode(0666)); err != nil && !os.IsExist(err) {
+	if err = os.Mkdir(c.Temp, os.FileMode(0766)); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
