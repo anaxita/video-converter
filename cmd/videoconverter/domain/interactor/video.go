@@ -32,6 +32,7 @@ func NewVideoCase(ch map[int]chan int, env string, tmp string, db domain.Storage
 	}
 }
 
+// Start starts main logic
 func (vc *VideoCase) Start(deadline time.Time) {
 	videos, err := vc.db.Videos()
 	if err != nil {
