@@ -8,7 +8,7 @@ type Storager interface {
 	Videos() ([]Video, error)
 	UpdatePropertyByID(id int64, value string) error
 	InsertProperty(elementID int64, propertyID int64, value string) error
-	QualityIDs() (QualityProperty, error)
+	QualityIDs() (*QualityProperty, error)
 }
 type Encoder interface {
 	Convert(tmp string, filePath string, quality VQ) (string, error)
