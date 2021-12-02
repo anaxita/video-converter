@@ -73,8 +73,6 @@ func (vc *VideoCase) Start(deadline time.Time) {
 
 		wg.Add(1)
 		go vc.ProcessingVideo(&wg, &v)
-
-		break
 	}
 
 	wg.Wait()

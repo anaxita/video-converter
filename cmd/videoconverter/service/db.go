@@ -7,7 +7,8 @@ import (
 )
 
 type Storage struct {
-	db *dbr.Connection
+	db   *dbr.Connection
+	qids *domain.QualityProperty
 }
 
 func NewStorage(dbConn *dbr.Connection) *Storage {
@@ -121,7 +122,7 @@ func (s *Storage) InsertProperty(elementID int64, propertyID int64, value string
 	return nil
 }
 
-func (s *Storage) QualityIDs() (domain.QualityProperty, error) {
+func (s *Storage) qualityIDs() (*domain.QualityProperty, error) {
 	var qp domain.QualityProperty
 
 	session := s.db.NewSession(nil)
@@ -150,8 +151,16 @@ WHERE b_iblock.CODE = 'lessons' AND b_iblock.IBLOCK_TYPE_ID = 'content'
 	).Load(&qp)
 
 	if err != nil {
-		return qp, errors.WithStack(err)
+		return nil, errors.WithStack(err)
 	}
 
-	return qp, nil
+	return &qp, nil
+}
+
+func (s *Storage) QualityIDs() (*domain.QualityProperty, error) {
+	if s.qids != nil {
+		return s.qids, nil
+	}
+
+	return s.qualityIDs()
 }

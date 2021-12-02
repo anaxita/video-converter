@@ -62,6 +62,8 @@ func main() {
 		log.Fatalln("Database connection:", err)
 	}
 
+	defer conn.Close()
+
 	httpClient, cloudAuthData, err := bootstrap.InitCloud(c.Cloud.Login, c.Cloud.Password)
 	if err != nil {
 		log.Fatalln("Cloud connection:", err)
@@ -82,11 +84,12 @@ func main() {
 	}
 	defer closeChannels(channels)
 
-	vi := interactor.NewVideoCase(channels, c.ENV, c.Temp, storage, cloud, encode)
-
 	deadline := now.Add(time.Hour * time.Duration(c.Timeout))
+
+	vi := interactor.NewVideoCase(channels, c.ENV, c.Temp, storage, cloud, encode)
 	go vi.Start(deadline)
 
+	// handle signals, channels
 	var result resultData
 	go listen(ctx, channels, &result)
 

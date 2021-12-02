@@ -107,7 +107,9 @@ func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
 
 	if res.StatusCode != http.StatusOK {
 		var resp map[string]interface{}
-		json.NewDecoder(res.Body).Decode(&resp)
+		if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+			return "", ErrNotStatusOK
+		}
 
 		if strings.Contains(resp["msg"].(string), "duplication") {
 			return domain.CacheURL + path, nil
