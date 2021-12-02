@@ -10,7 +10,6 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
-	"strings"
 	"videoconverter/domain"
 )
 
@@ -20,6 +19,7 @@ const (
 
 var (
 	ErrNotStatusOK  = errors.New("download file failed, code is not 200")
+	ErrFreeSpace    = errors.New("на облаке кончилось место")
 	ErrNotFullWrite = errors.New("file was not recorded completely")
 )
 
@@ -105,17 +105,16 @@ func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
 		}
 	}()
 
+	if res.StatusCode == http.StatusConflict {
+		return domain.CacheURL + path, nil
+	}
+
+	if res.StatusCode == http.StatusInsufficientStorage {
+		return "", ErrFreeSpace
+	}
+
 	if res.StatusCode != http.StatusOK {
-		var resp map[string]interface{}
-		if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
-			return "", ErrNotStatusOK
-		}
-
-		if strings.Contains(resp["msg"].(string), "duplication") {
-			return domain.CacheURL + path, nil
-		}
-
-		return "", errors.New(resp["msg"].(string))
+		return "", ErrNotStatusOK
 	}
 
 	err = json.NewDecoder(res.Body).Decode(&apiResponse)
