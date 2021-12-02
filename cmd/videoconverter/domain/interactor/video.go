@@ -131,7 +131,7 @@ func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video) {
 	wg.Wait()
 
 	if v.IsFull() && vc.env != "prod" {
-		log.Printf("Видео %d полностью обработано, удаляю оригинал", v.ID)
+		log.Printf("Видео %d полностью обработано, удаляю оригинал", v.FilenameOrig)
 
 		vc.cloud.Delete(v.CloudDir + cloudFile)
 	}

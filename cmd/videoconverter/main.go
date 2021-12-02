@@ -111,6 +111,8 @@ func main() {
 		result.NotConverted,
 		result.Uploaded,
 		result.NotUploaded)
+
+	os.RemoveAll(c.Temp)
 }
 
 type resultData struct {
