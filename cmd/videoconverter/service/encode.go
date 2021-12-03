@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"log"
@@ -18,10 +19,14 @@ func (e cmdError) Error() string {
 	return fmt.Sprintf("%v\n%s\n", e.err, e.out)
 }
 
-type VideoEncoder struct{}
+type VideoEncoder struct {
+	ctx context.Context
+}
 
-func NewEncoder() *VideoEncoder {
-	return &VideoEncoder{}
+func NewEncoder(ctx context.Context) *VideoEncoder {
+	return &VideoEncoder{
+		ctx: ctx,
+	}
 }
 
 // Convert a video from src to dst with q quality, return path to new video.
@@ -31,7 +36,7 @@ func (e *VideoEncoder) Convert(tmp string, filePath string, quality domain.VQ) (
 	_, fName := path.Split(filePath)
 	outVideo := fmt.Sprintf("%s/v-%d-%s", tmp, quality, fName)
 
-	cmd := exec.Command(
+	cmd := exec.CommandContext(e.ctx,
 		"ffmpeg",
 		"-y",
 		"-i",
@@ -69,7 +74,7 @@ func (e *VideoEncoder) CreatePreview(tmp, filePath string) (string, error) {
 	_, fName := path.Split(filePath)
 	outVideo := fmt.Sprintf("%s/v-preview-%s", tmp, fName)
 
-	cmd := exec.Command(
+	cmd := exec.CommandContext(e.ctx,
 		"ffmpeg",
 		"-y",
 		"-ss",
@@ -92,39 +97,3 @@ func (e *VideoEncoder) CreatePreview(tmp, filePath string) (string, error) {
 
 	return outVideo, nil
 }
-
-// ClearTemp deletes all .mp4 files that was created today
-//func (e *VideoEncoder) ClearTemp() error {
-//	cmd := exec.Command(
-//		"find",
-//		"./temp",
-//		"-type",
-//		"f",
-//		"-name",
-//		"'*.mp4'",
-//		"-mtime",
-//		"0",
-//		"-delete",
-//	)
-//
-//	out, err := cmd.CombinedOutput()
-//	if err != nil {
-//		return errors.WithStack(cmdError{out, err})
-//	}
-//
-//	return nil
-//}
-
-//func (e *VideoEncoder) RemoveFile(filepath string) error {
-//	cmd := exec.Command(
-//		"rm",
-//		filepath,
-//	)
-//
-//	out, err := cmd.CombinedOutput()
-//	if err != nil {
-//		return errors.WithStack(cmdError{out, err})
-//	}
-//
-//	return nil
-//}

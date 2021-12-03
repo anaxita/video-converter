@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/pkg/errors"
@@ -18,19 +19,20 @@ const (
 )
 
 var (
-	ErrNotStatusOK  = errors.New("download file failed, code is not 200")
 	ErrFreeSpace    = errors.New("на облаке кончилось место")
 	ErrNotFullWrite = errors.New("file was not recorded completely")
 )
 
 type Cloud struct {
+	ctx     context.Context
 	client  *http.Client
 	token   string
 	ownerID string
 }
 
-func NewCloud(client *http.Client, token, ownerID string) *Cloud {
+func NewCloud(ctx context.Context, client *http.Client, token, ownerID string) *Cloud {
 	return &Cloud{
+		ctx:     ctx,
 		client:  client,
 		token:   token,
 		ownerID: ownerID,
@@ -39,7 +41,14 @@ func NewCloud(client *http.Client, token, ownerID string) *Cloud {
 
 // DownloadFile downloads a file from url u into file f
 func (c *Cloud) DownloadFile(u string, f *os.File) error {
-	r, err := http.Get(u)
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return errors.WithStack(err)
+	}
+
+	req = req.WithContext(c.ctx)
+
+	r, err := c.client.Do(req)
 	if err != nil {
 		return errors.WithStack(err)
 	}
@@ -47,7 +56,7 @@ func (c *Cloud) DownloadFile(u string, f *os.File) error {
 	defer r.Body.Close()
 
 	if r.StatusCode != http.StatusOK {
-		return ErrNotStatusOK
+		return errors.WithMessagef(err, "reponse code is %d", r.StatusCode)
 	}
 
 	n, err := io.Copy(f, r.Body)
@@ -90,6 +99,8 @@ func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
 		return "", errors.WithStack(err)
 	}
 
+	req = req.WithContext(c.ctx)
+
 	req.Header.Add("Authorization", "Bearer "+c.token)
 	req.Header.Add("Content-Type", w.FormDataContentType())
 	req.Header.Add("Content-Length", fmt.Sprintf("%d", n))
@@ -114,7 +125,8 @@ func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
 	}
 
 	if res.StatusCode != http.StatusOK {
-		return "", ErrNotStatusOK
+		return "", errors.WithMessagef(err, "reponse code is %d", res.StatusCode)
+
 	}
 
 	err = json.NewDecoder(res.Body).Decode(&apiResponse)
@@ -135,6 +147,8 @@ func (c *Cloud) Delete(filepath string) error {
 
 	req.Header.Add("Content-Type", "multipart/form-data")
 	req.Header.Add("Authorization", "Bearer "+c.token)
+
+	req = req.WithContext(c.ctx)
 
 	res, err := c.client.Do(req)
 	if err != nil {

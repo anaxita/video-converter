@@ -71,55 +71,58 @@ func (vc *VideoCase) Start(deadline time.Time) {
 		escapedURL, err := url.PathUnescape(v.LinkOrig.String)
 		if err != nil {
 			log.Printf("Не удалось экранировать URL %s\nПропускаю обработку", v.LinkOrig.String)
+
+			continue
+		}
+
+		cURL, err := url.Parse(v.LinkOrig.String)
+		if err != nil {
+			log.Printf("Ссылка на оригинал не является валидным URL : %s", v.LinkOrig.String)
 			return
 		}
+
+		cloudDir, cloudFile := path.Split(cURL.Path)
+		v.CloudDir = strings.ReplaceAll(cloudDir, "/synergy/", "")
+		v.FilenameOrig = domain.FormatFileName(cloudFile)
+
+		f, err := os.Create(vc.tmp + "/" + v.FilenameOrig)
+		if err != nil {
+			log.Printf("Create a temp file: %+v", err)
+			return
+		}
+
+		log.Printf("Загружаю оригинал видео ID %d по ссылке %s", v.ID, v.LinkOrig.String)
+		err = vc.cloud.DownloadFile(v.LinkOrig.String, f)
+		if err != nil {
+			log.Printf("Ошибка загрузки ориганала ID %d по ссылке %s: %+v", v.ID, v.LinkOrig.String, err)
+			f.Close()
+			return
+		}
+		f.Close()
+
+		v.LocalPathOrig = f.Name()
 
 		v.LinkOrig.String = escapedURL
 
 		wg.Add(1)
-		go vc.ProcessingVideo(&wg, &v)
+		vc.ProcessingVideo(&wg, &v, cloudFile)
+		break
 	}
 
 	wg.Wait()
 }
 
-func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video) {
+func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video, cloudFile string) {
 	log.Println("Начинаю обработку видео с ID", v.ID)
-	defer g.Done()
-
-	cURL, err := url.Parse(v.LinkOrig.String)
-	if err != nil {
-		log.Printf("Ссылка на оригинал не является валидным URL : %s", v.LinkOrig.String)
-		return
-	}
-
-	cloudDir, cloudFile := path.Split(cURL.Path)
-	v.CloudDir = strings.ReplaceAll(cloudDir, "/synergy/", "")
-	v.FilenameOrig = domain.FormatFileName(cloudFile)
-
-	f, err := os.Create(vc.tmp + "/" + v.FilenameOrig)
-	if err != nil {
-		log.Printf("Create a temp file: %+v", err)
-		return
-	}
 
 	defer func() {
-		f.Close()
-
-		err = os.Remove(f.Name())
+		err := os.Remove(v.LocalPathOrig)
 		if err != nil {
-			log.Printf("Remove file %s: %v", f.Name(), err)
+			log.Printf("Remove file %s: %v", v.LocalPathOrig, err)
 		}
+
+		g.Done()
 	}()
-
-	log.Printf("Загружаю оригинал видео ID %d по ссылке %s", v.ID, v.LinkOrig.String)
-	err = vc.cloud.DownloadFile(v.LinkOrig.String, f)
-	if err != nil {
-		log.Printf("DownloadFile file: %+v", err)
-		return
-	}
-
-	v.LocalPathOrig = f.Name()
 
 	var wg sync.WaitGroup
 	wg.Add(5)
@@ -153,7 +156,12 @@ func (vc *VideoCase) process(v *domain.Video, q domain.VQ) (string, error) {
 		vc.ch[domain.ChNotConverted] <- 1
 		return "", err
 	}
-	defer os.Remove(newV)
+	defer func() {
+		log.Printf("Remove file: %s", newV)
+		if err := os.Remove(newV); err != nil {
+			log.Printf("Error remove file: %s", newV)
+		}
+	}()
 
 	vc.ch[domain.ChConverted] <- 1
 
@@ -172,6 +180,8 @@ func (vc *VideoCase) process(v *domain.Video, q domain.VQ) (string, error) {
 		vc.ch[domain.ChNotUploaded] <- 1
 		return "", err
 	}
+
+	log.Printf("Успешно загрузили файл %s", f.Name())
 
 	vc.ch[domain.ChUploaded] <- 1
 

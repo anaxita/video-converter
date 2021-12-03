@@ -3,6 +3,7 @@ package service
 import (
 	"github.com/gocraft/dbr"
 	"github.com/pkg/errors"
+	"log"
 	"videoconverter/domain"
 )
 
@@ -162,5 +163,12 @@ func (s *Storage) QualityIDs() (*domain.QualityProperty, error) {
 		return s.qids, nil
 	}
 
-	return s.qualityIDs()
+	qp, err := s.qualityIDs()
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Поля форматов в БД: %#v", qp)
+
+	return qp, nil
 }
