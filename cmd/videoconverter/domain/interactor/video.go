@@ -34,6 +34,10 @@ func NewVideoCase(ch map[int]chan int, env string, tmp string, db domain.Storage
 
 // Start starts main logic
 func (vc *VideoCase) Start(deadline time.Time) {
+	defer func() {
+		vc.ch[domain.ChDone] <- 1
+	}()
+
 	videos, err := vc.db.Videos()
 	if err != nil {
 		log.Println("Get videos:", err)
@@ -77,8 +81,6 @@ func (vc *VideoCase) Start(deadline time.Time) {
 	}
 
 	wg.Wait()
-
-	vc.ch[domain.ChDone] <- 1
 }
 
 func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video) {
@@ -188,6 +190,7 @@ func (vc *VideoCase) p1080(wg *sync.WaitGroup, v *domain.Video) {
 	qp, err := vc.db.QualityIDs()
 	if err != nil {
 		log.Printf("Ошибка получения ID форматов из БД: %+v", err)
+		vc.ch[domain.ChDone] <- 1
 		return
 	}
 
@@ -200,6 +203,7 @@ func (vc *VideoCase) p1080(wg *sync.WaitGroup, v *domain.Video) {
 
 	if err != nil {
 		log.Printf("Ошибка обновления поля %d в БД: %+v", v.ID1080.Int64, err)
+		vc.ch[domain.ChDone] <- 1
 		return
 	}
 }
@@ -216,6 +220,7 @@ func (vc *VideoCase) p720(wg *sync.WaitGroup, v *domain.Video) {
 	qp, err := vc.db.QualityIDs()
 	if err != nil {
 		log.Printf("Ошибка получения ID форматов из БД: %+v", err)
+		vc.ch[domain.ChDone] <- 1
 		return
 	}
 
@@ -228,6 +233,7 @@ func (vc *VideoCase) p720(wg *sync.WaitGroup, v *domain.Video) {
 
 	if err != nil {
 		log.Printf("Ошибка обновления поля %d в БД: %+v", v.ID720.Int64, err)
+		vc.ch[domain.ChDone] <- 1
 		return
 	}
 }
@@ -244,6 +250,7 @@ func (vc *VideoCase) p480(wg *sync.WaitGroup, v *domain.Video) {
 	qp, err := vc.db.QualityIDs()
 	if err != nil {
 		log.Printf("Ошибка получения ID форматов из БД: %+v", err)
+		vc.ch[domain.ChDone] <- 1
 		return
 	}
 
@@ -256,6 +263,7 @@ func (vc *VideoCase) p480(wg *sync.WaitGroup, v *domain.Video) {
 
 	if err != nil {
 		log.Printf("Ошибка обновления поля %d в БД: %+v", v.ID480.Int64, err)
+		vc.ch[domain.ChDone] <- 1
 		return
 	}
 }
@@ -272,6 +280,8 @@ func (vc *VideoCase) p360(wg *sync.WaitGroup, v *domain.Video) {
 	qp, err := vc.db.QualityIDs()
 	if err != nil {
 		log.Printf("Ошибка получения ID форматов из БД: %+v", err)
+		vc.ch[domain.ChDone] <- 1
+
 		return
 	}
 
@@ -284,6 +294,8 @@ func (vc *VideoCase) p360(wg *sync.WaitGroup, v *domain.Video) {
 
 	if err != nil {
 		log.Printf("Ошибка обновления поля %d в БД: %+v", v.ID360.Int64, err)
+		vc.ch[domain.ChDone] <- 1
+
 		return
 	}
 }
@@ -300,6 +312,8 @@ func (vc *VideoCase) pPreview(wg *sync.WaitGroup, v *domain.Video) {
 	qp, err := vc.db.QualityIDs()
 	if err != nil {
 		log.Printf("Ошибка получения ID форматов из БД: %+v", err)
+		vc.ch[domain.ChDone] <- 1
+
 		return
 	}
 
@@ -313,6 +327,8 @@ func (vc *VideoCase) pPreview(wg *sync.WaitGroup, v *domain.Video) {
 
 	if err != nil {
 		log.Printf("Ошибка обновления поля %d в БД: %+v", v.IDPreview.Int64, err)
+		vc.ch[domain.ChDone] <- 1
+
 		return
 	}
 }
