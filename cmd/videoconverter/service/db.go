@@ -12,12 +12,14 @@ type Storage struct {
 	qids *domain.QualityProperty
 }
 
+// NewStorage returns a ready for use instance of Storage
 func NewStorage(dbConn *dbr.Connection) *Storage {
 	return &Storage{
 		db: dbConn,
 	}
 }
 
+// Videos get all videos
 func (s *Storage) Videos() ([]domain.Video, error) {
 	var v []domain.Video
 
@@ -73,6 +75,7 @@ WHERE b_iblock.CODE = 'lessons' AND b_iblock.IBLOCK_TYPE_ID = 'content'
 	return v, nil
 }
 
+// UpdatePropertyByID update a property with b_iblock_element_property = qualityID
 func (s *Storage) UpdatePropertyByID(id int64, value string) error {
 	_, err := s.db.NewSession(nil).
 		Update(
@@ -95,6 +98,7 @@ func (s *Storage) UpdatePropertyByID(id int64, value string) error {
 	return nil
 }
 
+// InsertProperty create a new property with b_iblock_element_property = qualityID if it isn't exists
 func (s *Storage) InsertProperty(elementID int64, propertyID int64, value string) error {
 	var maxID int64
 
@@ -123,6 +127,8 @@ func (s *Storage) InsertProperty(elementID int64, propertyID int64, value string
 	return nil
 }
 
+// qualityIDs returns property ids for every video format (1080, 720, 480, 360, preview)
+// it used where we need to update or create value any video format
 func (s *Storage) qualityIDs() (*domain.QualityProperty, error) {
 	var qp domain.QualityProperty
 
@@ -158,6 +164,7 @@ WHERE b_iblock.CODE = 'lessons' AND b_iblock.IBLOCK_TYPE_ID = 'content'
 	return &qp, nil
 }
 
+// QualityIDs returns property ids from cache or get it from db
 func (s *Storage) QualityIDs() (*domain.QualityProperty, error) {
 	if s.qids != nil {
 		return s.qids, nil

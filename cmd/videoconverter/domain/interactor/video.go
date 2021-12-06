@@ -12,6 +12,8 @@ import (
 	"videoconverter/domain"
 )
 
+// VideoCase describe a video interactor
+// used for start vide use cases
 type VideoCase struct {
 	env     string
 	tmp     string
@@ -21,6 +23,7 @@ type VideoCase struct {
 	encoder domain.Encoder
 }
 
+// NewVideoCase returns a ready for use instance ofr VideoCase
 func NewVideoCase(ch map[int]chan int, env string, tmp string, db domain.Storager, cloud domain.Clouder, encoder domain.Encoder) *VideoCase {
 	return &VideoCase{
 		env:     env,
@@ -32,7 +35,7 @@ func NewVideoCase(ch map[int]chan int, env string, tmp string, db domain.Storage
 	}
 }
 
-// Start starts main logic
+// Start starts the processing all videos case
 func (vc *VideoCase) Start(deadline time.Time) {
 	defer func() {
 		vc.ch[domain.ChDone] <- 1
@@ -112,6 +115,8 @@ func (vc *VideoCase) Start(deadline time.Time) {
 	wg.Wait()
 }
 
+// ProcessingVideo start the processing of one video,
+// delete original after processing
 func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video, cloudFile string) {
 	log.Println("Начинаю обработку видео с ID", v.ID)
 
@@ -138,10 +143,19 @@ func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video, cloudFi
 	if v.IsFull() && vc.env == domain.EnvProd {
 		log.Printf("Видео %s полностью обработано, удаляю оригинал", v.FilenameOrig)
 
-		vc.cloud.Delete(v.CloudDir + cloudFile)
+		if err := vc.cloud.Delete(v.CloudDir + cloudFile); err != nil {
+			log.Printf("Ошибка удаления оригинала из облака %s\n%v", cloudFile, err)
+
+			return
+		}
+
+		if err := vc.db.UpdatePropertyByID(v.IDOrig.Int64, ""); err != nil {
+			log.Printf("Ошибка очистки ссылки на оригинал в БД %s\n%v", cloudFile, err)
+		}
 	}
 }
 
+// process converts a video to required format and uploads to the cloud
 func (vc *VideoCase) process(v *domain.Video, q domain.VQ) (string, error) {
 	var newV string
 	var err error
@@ -188,6 +202,7 @@ func (vc *VideoCase) process(v *domain.Video, q domain.VQ) (string, error) {
 	return "https://" + u, nil
 }
 
+// p1080 start process method and update video data in the database
 func (vc *VideoCase) p1080(wg *sync.WaitGroup, v *domain.Video) {
 	defer wg.Done()
 
@@ -218,6 +233,7 @@ func (vc *VideoCase) p1080(wg *sync.WaitGroup, v *domain.Video) {
 	}
 }
 
+// p720 start process method and update video data in the database
 func (vc *VideoCase) p720(wg *sync.WaitGroup, v *domain.Video) {
 	defer wg.Done()
 
@@ -248,6 +264,7 @@ func (vc *VideoCase) p720(wg *sync.WaitGroup, v *domain.Video) {
 	}
 }
 
+// p480 start process method and update video data in the database
 func (vc *VideoCase) p480(wg *sync.WaitGroup, v *domain.Video) {
 	defer wg.Done()
 
@@ -278,6 +295,7 @@ func (vc *VideoCase) p480(wg *sync.WaitGroup, v *domain.Video) {
 	}
 }
 
+// p360 start process method and update video data in the database
 func (vc *VideoCase) p360(wg *sync.WaitGroup, v *domain.Video) {
 	defer wg.Done()
 
@@ -310,6 +328,7 @@ func (vc *VideoCase) p360(wg *sync.WaitGroup, v *domain.Video) {
 	}
 }
 
+// pPreview start process method and update video data in the database
 func (vc *VideoCase) pPreview(wg *sync.WaitGroup, v *domain.Video) {
 	defer wg.Done()
 

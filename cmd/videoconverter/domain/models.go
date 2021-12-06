@@ -2,6 +2,7 @@ package domain
 
 import "github.com/gocraft/dbr"
 
+// Video describe video entity with required db and business logic fields
 type Video struct {
 	ID int64 `db:"id"`
 
@@ -28,6 +29,7 @@ type Video struct {
 	CloudDir      string
 }
 
+// IsFull checks that a video has all required formats
 func (v *Video) IsFull() bool {
 	return v.Link1080.String != "" &&
 		v.Link720.String != "" &&
@@ -36,6 +38,7 @@ func (v *Video) IsFull() bool {
 		v.LinkPreview.String != ""
 }
 
+// QualityProperty describe property ids for every format of video in the database
 type QualityProperty struct {
 	ID1080    int64 `db:"id_1080"`
 	ID720     int64 `db:"id_720"`

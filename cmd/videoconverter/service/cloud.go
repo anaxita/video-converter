@@ -20,9 +20,10 @@ const (
 
 var (
 	ErrFreeSpace    = errors.New("на облаке кончилось место")
-	ErrNotFullWrite = errors.New("file was not recorded completely")
+	ErrNotFullWrite = errors.New("файл был загружен не полностью")
 )
 
+// Cloud describe a remote file cloud
 type Cloud struct {
 	ctx     context.Context
 	client  *http.Client
@@ -30,6 +31,7 @@ type Cloud struct {
 	ownerID string
 }
 
+// NewCloud returns ready for use *Cloud instance
 func NewCloud(ctx context.Context, client *http.Client, token, ownerID string) *Cloud {
 	return &Cloud{
 		ctx:     ctx,
@@ -40,6 +42,7 @@ func NewCloud(ctx context.Context, client *http.Client, token, ownerID string) *
 }
 
 // DownloadFile downloads a file from url u into file f
+// Use for downloading an original file for next converting
 func (c *Cloud) DownloadFile(u string, f *os.File) error {
 	req, err := http.NewRequest(http.MethodGet, u, nil)
 	if err != nil {
@@ -71,6 +74,7 @@ func (c *Cloud) DownloadFile(u string, f *os.File) error {
 	return nil
 }
 
+// UploadFile uploads a converted file to the cloud
 func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
 	var apiResponse struct {
 		DownloadUrl string `json:"download_url"`
@@ -137,6 +141,8 @@ func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
 	return apiResponse.DownloadUrl, nil
 }
 
+// Delete deletes a converted file from the cloud
+// Use for delete large original files after converting to all required formats
 func (c *Cloud) Delete(filepath string) error {
 	uri := fmt.Sprintf("%s/%s/object/%s", apiURL, c.ownerID, filepath)
 

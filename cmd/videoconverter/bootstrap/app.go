@@ -8,6 +8,7 @@ import (
 	"time"
 )
 
+// App describe app configuration
 type App struct {
 	ENV       string
 	LogDir    string
@@ -18,11 +19,13 @@ type App struct {
 	DB        DB
 }
 
+// Cloud describe cloud configuration
 type Cloud struct {
 	Login    string
 	Password string
 }
 
+// DB describe database configuration
 type DB struct {
 	Scheme   string
 	Name     string
@@ -31,6 +34,7 @@ type DB struct {
 	Password string
 }
 
+// New parses .env file, create a logdir, tempdir and returns a ready for use App config
 func New(pathToConfig string) (*App, error) {
 	err := godotenv.Load(pathToConfig)
 	if err != nil {
@@ -75,6 +79,7 @@ func New(pathToConfig string) (*App, error) {
 	return &c, nil
 }
 
+// NewLog creates a new logfile into with current date into logDir
 func NewLog(logDir string) (*os.File, error) {
 	timeSting := time.Now().UTC().Format("2006-01-02-15-04-05")
 	logPath := fmt.Sprintf("%s/video-converter-%s.log", logDir, timeSting)
