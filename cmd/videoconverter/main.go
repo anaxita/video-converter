@@ -75,7 +75,7 @@ func main() {
 
 	// services
 	storage := service.NewStorage(conn)
-	cloud := service.NewCloud(httpClient, cloudAuthData.Token, cloudAuthData.OwnerID)
+	cloud := service.NewCloud(ctx, httpClient, cloudAuthData.Token, cloudAuthData.OwnerID)
 	encode := service.NewEncoder(ctx)
 
 	// interactors
