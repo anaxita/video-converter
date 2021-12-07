@@ -109,7 +109,6 @@ func (vc *VideoCase) Start(deadline time.Time) {
 
 		wg.Add(1)
 		vc.ProcessingVideo(&wg, &v, cloudFile)
-		break
 	}
 
 	wg.Wait()
@@ -130,13 +129,26 @@ func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video, cloudFi
 	}()
 
 	var wg sync.WaitGroup
-	wg.Add(5)
-
-	go vc.p1080(&wg, v)
-	go vc.p720(&wg, v)
-	go vc.p480(&wg, v)
-	go vc.p360(&wg, v)
-	go vc.pPreview(&wg, v)
+	switch {
+	case v.Link1080.String == "":
+		wg.Add(1)
+		go vc.p1080(&wg, v)
+		fallthrough
+	case v.Link720.String == "":
+		wg.Add(1)
+		go vc.p720(&wg, v)
+	case v.Link480.String == "":
+		wg.Add(1)
+		go vc.p480(&wg, v)
+		fallthrough
+	case v.Link360.String == "":
+		wg.Add(1)
+		go vc.p360(&wg, v)
+		fallthrough
+	case v.LinkPreview.String == "":
+		wg.Add(1)
+		go vc.pPreview(&wg, v)
+	}
 
 	wg.Wait()
 
@@ -199,7 +211,9 @@ func (vc *VideoCase) process(v *domain.Video, q domain.VQ) (string, error) {
 
 	vc.ch[domain.ChUploaded] <- 1
 
-	return "https://" + u, nil
+	eu, _ := url.Parse(u)
+
+	return eu.String(), nil
 }
 
 // p1080 start process method and update video data in the database
@@ -220,21 +234,25 @@ func (vc *VideoCase) p1080(wg *sync.WaitGroup, v *domain.Video) {
 	}
 
 	v.Link1080.String = u
+
 	if v.ID1080.Valid {
-		err = vc.db.UpdatePropertyByID(v.ID1080.Int64, u)
-	} else {
-		err = vc.db.InsertProperty(v.ID, qp.ID1080, u)
+		if err := vc.db.UpdatePropertyByID(v.ID1080.Int64, u); err != nil {
+			log.Printf("Ошибка обновления поля %d для видео %d в БД: %+v", v.ID1080.Int64, v.ID, err)
+			vc.ch[domain.ChDone] <- 1
+		}
+
+		return
 	}
 
-	if err != nil {
-		log.Printf("Ошибка обновления поля %d в БД: %+v", v.ID1080.Int64, err)
+	if err := vc.db.InsertProperty(v.ID, qp.ID1080, u); err != nil {
+		log.Printf("Ошибка  добавления поля 1080 для видео %d в БД: %+v", v.ID, err)
 		vc.ch[domain.ChDone] <- 1
-		return
 	}
 }
 
 // p720 start process method and update video data in the database
-func (vc *VideoCase) p720(wg *sync.WaitGroup, v *domain.Video) {
+func (vc *VideoCase) p720(wg *sync.WaitGroup,
+	v *domain.Video) {
 	defer wg.Done()
 
 	u, err := vc.process(v, domain.Q720)
@@ -251,21 +269,26 @@ func (vc *VideoCase) p720(wg *sync.WaitGroup, v *domain.Video) {
 	}
 
 	v.Link720.String = u
+
 	if v.ID720.Valid {
-		err = vc.db.UpdatePropertyByID(v.ID720.Int64, u)
-	} else {
-		err = vc.db.InsertProperty(v.ID, qp.ID720, u)
+		if err := vc.db.UpdatePropertyByID(v.ID720.Int64, u); err != nil {
+			log.Printf("Ошибка обновления поля %d у видео %d в БД: %+v", v.ID720.Int64, v.ID, err)
+			vc.ch[domain.ChDone] <- 1
+
+		}
+
+		return
 	}
 
-	if err != nil {
+	if err := vc.db.InsertProperty(v.ID, qp.ID720, u); err != nil {
 		log.Printf("Ошибка обновления поля %d в БД: %+v", v.ID720.Int64, err)
 		vc.ch[domain.ChDone] <- 1
-		return
 	}
 }
 
 // p480 start process method and update video data in the database
-func (vc *VideoCase) p480(wg *sync.WaitGroup, v *domain.Video) {
+func (vc *VideoCase) p480(wg *sync.WaitGroup,
+	v *domain.Video) {
 	defer wg.Done()
 
 	u, err := vc.process(v, domain.Q480)
@@ -283,20 +306,23 @@ func (vc *VideoCase) p480(wg *sync.WaitGroup, v *domain.Video) {
 
 	v.Link480.String = u
 	if v.ID480.Valid {
-		err = vc.db.UpdatePropertyByID(v.ID480.Int64, u)
-	} else {
-		err = vc.db.InsertProperty(v.ID, qp.ID480, u)
+		if err := vc.db.UpdatePropertyByID(v.ID480.Int64, u); err != nil {
+			log.Printf("Ошибка обновления поля %d для видео %d в БД: %+v", v.ID480.Int64, v.ID, err)
+			vc.ch[domain.ChDone] <- 1
+		}
+
+		return
 	}
 
-	if err != nil {
-		log.Printf("Ошибка обновления поля %d в БД: %+v", v.ID480.Int64, err)
+	if err := vc.db.InsertProperty(v.ID, qp.ID480, u); err != nil {
+		log.Printf("Ошибка добавления поля 480p видео %d в БД: %+v", v.ID, err)
 		vc.ch[domain.ChDone] <- 1
-		return
 	}
 }
 
 // p360 start process method and update video data in the database
-func (vc *VideoCase) p360(wg *sync.WaitGroup, v *domain.Video) {
+func (vc *VideoCase) p360(wg *sync.WaitGroup,
+	v *domain.Video) {
 	defer wg.Done()
 
 	u, err := vc.process(v, domain.Q360)
@@ -314,14 +340,18 @@ func (vc *VideoCase) p360(wg *sync.WaitGroup, v *domain.Video) {
 	}
 
 	v.Link360.String = u
+
 	if v.ID360.Valid {
-		err = vc.db.UpdatePropertyByID(v.ID360.Int64, u)
-	} else {
-		err = vc.db.InsertProperty(v.ID, qp.ID360, u)
+		if err = vc.db.UpdatePropertyByID(v.ID360.Int64, u); err != nil {
+			log.Printf("Ошибка обновления поля %d в БД у видео %d: %+v", v.ID360.Int64, v.ID, err)
+			vc.ch[domain.ChDone] <- 1
+
+			return
+		}
 	}
 
-	if err != nil {
-		log.Printf("Ошибка обновления поля %d в БД: %+v", v.ID360.Int64, err)
+	if err = vc.db.InsertProperty(v.ID, qp.ID360, u); err != nil {
+		log.Printf("Ошибка добавления поля для формата 360 у видео %d в БД: %+v", v.ID, err)
 		vc.ch[domain.ChDone] <- 1
 
 		return
@@ -329,7 +359,8 @@ func (vc *VideoCase) p360(wg *sync.WaitGroup, v *domain.Video) {
 }
 
 // pPreview start process method and update video data in the database
-func (vc *VideoCase) pPreview(wg *sync.WaitGroup, v *domain.Video) {
+func (vc *VideoCase) pPreview(wg *sync.WaitGroup,
+	v *domain.Video) {
 	defer wg.Done()
 
 	u, err := vc.process(v, domain.QPreview)
@@ -349,15 +380,16 @@ func (vc *VideoCase) pPreview(wg *sync.WaitGroup, v *domain.Video) {
 	v.LinkPreview.String = u
 
 	if v.IDPreview.Valid {
-		err = vc.db.UpdatePropertyByID(v.IDPreview.Int64, u)
-	} else {
-		err = vc.db.InsertProperty(v.ID, qp.IDPreview, u)
-	}
-
-	if err != nil {
-		log.Printf("Ошибка обновления поля %d в БД: %+v", v.IDPreview.Int64, err)
-		vc.ch[domain.ChDone] <- 1
+		if err := vc.db.UpdatePropertyByID(v.IDPreview.Int64, u); err != nil {
+			log.Printf("Ошибка обновления поля %d в БД: %+v", v.IDPreview.Int64, err)
+			vc.ch[domain.ChDone] <- 1
+		}
 
 		return
+	}
+
+	if err := vc.db.InsertProperty(v.ID, qp.IDPreview, u); err != nil {
+		log.Printf("Ошибка обновления поля %d в БД: %+v", v.IDPreview.Int64, err)
+		vc.ch[domain.ChDone] <- 1
 	}
 }

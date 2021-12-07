@@ -1,4 +1,22 @@
-### Video converter
+# Video converter
+
+## Requirements
+
+- Debian-like system (ubuntu, mint, etc...) with **apt** package manager
+- Golang >1.15
+- Command tool **make** (use `sudo apt install make -y` to install it)
+
+## Configuration
+
+All variables must be written to `.env` file in the root of the project.
+
+Available fields you can see at `example.env` file.
+
+## Using
+
+- `make install -S` for download and install **ffmpeg** tool for work with video files
+
+- `make up` - for download and start docker container with **mysql**
 
 ## Description
 

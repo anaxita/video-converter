@@ -138,7 +138,7 @@ func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
 		return "", errors.WithStack(err)
 	}
 
-	return apiResponse.DownloadUrl, nil
+	return "https://" + apiResponse.DownloadUrl, nil
 }
 
 // Delete deletes a converted file from the cloud
