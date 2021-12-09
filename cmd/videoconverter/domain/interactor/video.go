@@ -62,26 +62,26 @@ func (vc *VideoCase) Start(deadline time.Time) {
 		v := video
 
 		if v.IsFull() {
-			log.Printf("Видео %d имеет все форматы, пропускаю", v.ID)
+			log.Printf("[ERROR] Видео %d имеет все форматы, пропускаю", v.ID)
 			continue
 		}
 
 		if v.LinkOrig.String == "" {
-			log.Printf("Видео %d имеет пустую ссылку на оригинал, пропускаю", v.ID)
+			log.Printf("[ERROR] Видео %d имеет пустую ссылку на оригинал, пропускаю", v.ID)
 			continue
 		}
 
 		escapedURL, err := url.PathUnescape(v.LinkOrig.String)
 		if err != nil {
-			log.Printf("Не удалось экранировать URL %s\nПропускаю обработку", v.LinkOrig.String)
+			log.Printf("[ERROR] Не удалось экранировать URL %s\nПропускаю обработку", v.LinkOrig.String)
 
 			continue
 		}
 
 		cURL, err := url.Parse(v.LinkOrig.String)
 		if err != nil {
-			log.Printf("Ссылка на оригинал не является валидным URL : %s", v.LinkOrig.String)
-			return
+			log.Printf("[ERROR] Ссылка на оригинал не является валидным URL : %s", v.LinkOrig.String)
+			continue
 		}
 
 		cloudDir, cloudFile := path.Split(cURL.Path)
@@ -90,16 +90,16 @@ func (vc *VideoCase) Start(deadline time.Time) {
 
 		f, err := os.Create(vc.tmp + "/" + v.FilenameOrig)
 		if err != nil {
-			log.Printf("Create a temp file: %+v", err)
-			return
+			log.Printf("[ERROR] Create a temp file: %+v", err)
+			continue
 		}
 
 		log.Printf("Загружаю оригинал видео ID %d по ссылке %s", v.ID, v.LinkOrig.String)
 		err = vc.cloud.DownloadFile(v.LinkOrig.String, f)
 		if err != nil {
-			log.Printf("Ошибка загрузки ориганала ID %d по ссылке %s: %+v", v.ID, v.LinkOrig.String, err)
+			log.Printf("[ERROR]  Ошибка загрузки ориганала ID %d по ссылке %s: %+v", v.ID, v.LinkOrig.String, err)
 			f.Close()
-			return
+			continue
 		}
 		f.Close()
 
@@ -122,32 +122,39 @@ func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video, cloudFi
 	defer func() {
 		err := os.Remove(v.LocalPathOrig)
 		if err != nil {
-			log.Printf("Remove file %s: %v", v.LocalPathOrig, err)
+			log.Printf("[ERROR] Remove file %s: %v", v.LocalPathOrig, err)
 		}
 
 		g.Done()
 	}()
 
 	var wg sync.WaitGroup
+
 	switch {
 	case v.Link1080.String == "":
 		wg.Add(1)
 		go vc.p1080(&wg, v)
 		fallthrough
+
 	case v.Link720.String == "":
 		wg.Add(1)
 		go vc.p720(&wg, v)
+		fallthrough
+
 	case v.Link480.String == "":
 		wg.Add(1)
 		go vc.p480(&wg, v)
 		fallthrough
+
 	case v.Link360.String == "":
 		wg.Add(1)
 		go vc.p360(&wg, v)
 		fallthrough
+
 	case v.LinkPreview.String == "":
 		wg.Add(1)
 		go vc.pPreview(&wg, v)
+
 	}
 
 	wg.Wait()
@@ -156,13 +163,13 @@ func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video, cloudFi
 		log.Printf("Видео %s полностью обработано, удаляю оригинал", v.FilenameOrig)
 
 		if err := vc.cloud.Delete(v.CloudDir + cloudFile); err != nil {
-			log.Printf("Ошибка удаления оригинала из облака %s\n%v", cloudFile, err)
+			log.Printf("[ERROR] Ошибка удаления оригинала из облака %s\n%v", cloudFile, err)
 
 			return
 		}
 
 		if err := vc.db.UpdatePropertyByID(v.IDOrig.Int64, ""); err != nil {
-			log.Printf("Ошибка очистки ссылки на оригинал в БД %s\n%v", cloudFile, err)
+			log.Printf("[ERROR] Ошибка очистки ссылки на оригинал в БД %s\n%v", cloudFile, err)
 		}
 	}
 }
@@ -293,7 +300,7 @@ func (vc *VideoCase) p480(wg *sync.WaitGroup,
 
 	u, err := vc.process(v, domain.Q480)
 	if err != nil {
-		log.Printf("Ошибка обработки видео %d: %+v", v.ID, err)
+		log.Printf("[ERROR] Ошибка обработки видео %d: %+v", v.ID, err)
 		return
 	}
 
@@ -307,7 +314,7 @@ func (vc *VideoCase) p480(wg *sync.WaitGroup,
 	v.Link480.String = u
 	if v.ID480.Valid {
 		if err := vc.db.UpdatePropertyByID(v.ID480.Int64, u); err != nil {
-			log.Printf("Ошибка обновления поля %d для видео %d в БД: %+v", v.ID480.Int64, v.ID, err)
+			log.Printf("[ERROR] Ошибка обновления поля %d для видео %d в БД: %+v", v.ID480.Int64, v.ID, err)
 			vc.ch[domain.ChDone] <- 1
 		}
 
@@ -315,7 +322,7 @@ func (vc *VideoCase) p480(wg *sync.WaitGroup,
 	}
 
 	if err := vc.db.InsertProperty(v.ID, qp.ID480, u); err != nil {
-		log.Printf("Ошибка добавления поля 480p видео %d в БД: %+v", v.ID, err)
+		log.Printf("[ERROR] Ошибка добавления поля 480p видео %d в БД: %+v", v.ID, err)
 		vc.ch[domain.ChDone] <- 1
 	}
 }
@@ -327,13 +334,13 @@ func (vc *VideoCase) p360(wg *sync.WaitGroup,
 
 	u, err := vc.process(v, domain.Q360)
 	if err != nil {
-		log.Printf("Ошибка обработки видео %d: %+v", v.ID, err)
+		log.Printf("[ERROR] Ошибка обработки видео %d: %+v", v.ID, err)
 		return
 	}
 
 	qp, err := vc.db.QualityIDs()
 	if err != nil {
-		log.Printf("Ошибка получения ID форматов из БД: %+v", err)
+		log.Printf("[ERROR] Ошибка получения ID форматов из БД: %+v", err)
 		vc.ch[domain.ChDone] <- 1
 
 		return
@@ -343,7 +350,7 @@ func (vc *VideoCase) p360(wg *sync.WaitGroup,
 
 	if v.ID360.Valid {
 		if err = vc.db.UpdatePropertyByID(v.ID360.Int64, u); err != nil {
-			log.Printf("Ошибка обновления поля %d в БД у видео %d: %+v", v.ID360.Int64, v.ID, err)
+			log.Printf("[ERROR] Ошибка обновления поля %d в БД у видео %d: %+v", v.ID360.Int64, v.ID, err)
 			vc.ch[domain.ChDone] <- 1
 
 			return
@@ -351,7 +358,7 @@ func (vc *VideoCase) p360(wg *sync.WaitGroup,
 	}
 
 	if err = vc.db.InsertProperty(v.ID, qp.ID360, u); err != nil {
-		log.Printf("Ошибка добавления поля для формата 360 у видео %d в БД: %+v", v.ID, err)
+		log.Printf("[ERROR] Ошибка добавления поля для формата 360 у видео %d в БД: %+v", v.ID, err)
 		vc.ch[domain.ChDone] <- 1
 
 		return
