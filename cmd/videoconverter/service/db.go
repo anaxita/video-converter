@@ -3,13 +3,12 @@ package service
 import (
 	"github.com/gocraft/dbr"
 	"github.com/pkg/errors"
-	"log"
 	"videoconverter/domain"
 )
 
 type Storage struct {
 	db   *dbr.Connection
-	qids *domain.QualityProperty
+	qIDs *domain.QualityProperty
 }
 
 // NewStorage returns a ready for use instance of Storage
@@ -112,7 +111,7 @@ func (s *Storage) InsertProperty(elementID int64, propertyID int64, value string
 
 	_, err = session.
 		InsertInto(
-			"b_iblock_element_property",
+			" ",
 		).
 		Columns(
 			"ID", "IBLOCK_PROPERTY_ID", "IBLOCK_ELEMENT_ID", "VALUE",
@@ -166,16 +165,14 @@ WHERE b_iblock.CODE = 'lessons' AND b_iblock.IBLOCK_TYPE_ID = 'content'
 
 // QualityIDs returns property ids from cache or get it from db
 func (s *Storage) QualityIDs() (*domain.QualityProperty, error) {
-	if s.qids != nil {
-		return s.qids, nil
+	if s.qIDs != nil {
+		return s.qIDs, nil
 	}
 
 	qp, err := s.qualityIDs()
 	if err != nil {
 		return nil, err
 	}
-
-	log.Printf("Поля форматов в БД: %#v", qp)
 
 	return qp, nil
 }

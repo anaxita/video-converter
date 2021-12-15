@@ -7,10 +7,10 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"io"
-	"log"
 	"mime/multipart"
 	"net/http"
 	"os"
+	"videoconverter/bootstrap"
 	"videoconverter/domain"
 )
 
@@ -29,15 +29,18 @@ type Cloud struct {
 	client  *http.Client
 	token   string
 	ownerID string
+
+	l *bootstrap.Logger
 }
 
 // NewCloud returns ready for use *Cloud instance
-func NewCloud(ctx context.Context, client *http.Client, token, ownerID string) *Cloud {
+func NewCloud(ctx context.Context, client *http.Client, token, ownerID string, l *bootstrap.Logger) *Cloud {
 	return &Cloud{
 		ctx:     ctx,
 		client:  client,
 		token:   token,
 		ownerID: ownerID,
+		l:       l,
 	}
 }
 
@@ -116,7 +119,7 @@ func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
 
 	defer func() {
 		if err := res.Body.Close(); err != nil {
-			log.Println("can't close response body ", err)
+			c.l.E(fmt.Sprintln("can't close response body ", err))
 		}
 	}()
 
@@ -167,7 +170,7 @@ func (c *Cloud) Delete(filepath string) error {
 
 	defer func() {
 		if err := res.Body.Close(); err != nil {
-			log.Println("can't close response body ", err)
+			c.l.E(fmt.Sprintln("can't close response body ", err))
 		}
 	}()
 

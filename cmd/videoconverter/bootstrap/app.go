@@ -1,22 +1,24 @@
 package bootstrap
 
 import (
-	"fmt"
 	"github.com/joho/godotenv"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 // App describe app configuration
 type App struct {
-	ENV       string
-	LogDir    string
-	Temp      string
-	Timeout   int
-	ThreadMax int
-	Cloud     Cloud
-	DB        DB
+	ENV         string
+	LogDir      string
+	Temp        string
+	Timeout     int
+	ThreadMax   int
+	Cloud       Cloud
+	DB          DB
+	SkipNotFull bool
+	RmOriginal  bool
 }
 
 // Cloud describe cloud configuration
@@ -43,13 +45,9 @@ func New(pathToConfig string) (*App, error) {
 
 	var c App
 
-	c.ENV = os.Getenv("ENV")
-	c.LogDir = os.Getenv("LOG_DIR")
+	c.ENV = strings.ToLower(os.Getenv("ENV"))
 	c.Temp = os.Getenv("TMP_DIR")
-
-	if err = os.Mkdir(c.LogDir, os.FileMode(0766)); err != nil && !os.IsExist(err) {
-		return nil, err
-	}
+	c.LogDir = os.Getenv("LOG_DIR")
 
 	if err = os.Mkdir(c.Temp, os.FileMode(0766)); err != nil && !os.IsExist(err) {
 		return nil, err
@@ -67,6 +65,18 @@ func New(pathToConfig string) (*App, error) {
 		return nil, err
 	}
 
+	isSkippNotFull, err := strconv.ParseBool(os.Getenv("SKIP_NOT_FULL"))
+	if err != nil {
+		return nil, err
+	}
+	c.SkipNotFull = isSkippNotFull
+
+	isRmOriginal, err := strconv.ParseBool(os.Getenv("RM_ORIGINAL"))
+	if err != nil {
+		return nil, err
+	}
+	c.RmOriginal = isRmOriginal
+
 	c.Cloud.Login = os.Getenv("CLOUD_LOGIN")
 	c.Cloud.Password = os.Getenv("CLOUD_PASSWORD")
 
@@ -79,10 +89,6 @@ func New(pathToConfig string) (*App, error) {
 	return &c, nil
 }
 
-// NewLog creates a new logfile into with current date into logDir
-func NewLog(logDir string) (*os.File, error) {
-	timeSting := time.Now().UTC().Format("2006-01-02-15-04-05")
-	logPath := fmt.Sprintf("%s/video-converter-%s.log", logDir, timeSting)
-
-	return os.Create(logPath)
+func timeFormat() string {
+	return time.Now().UTC().Format("2006-02-01 15:04:05")
 }

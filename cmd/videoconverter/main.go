@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"flag"
-	"io"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -19,10 +19,10 @@ import (
 )
 
 func main() {
+	log.Println("Program is started")
+
 	pathToConfig := flag.String("c", "./.env", "path to .env config")
 	flag.Parse()
-
-	log.Println("Program is started")
 	now := time.Now()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -37,19 +37,16 @@ func main() {
 		log.Fatalln("Config load:", err)
 	}
 
-	logfile, err := bootstrap.NewLog(c.LogDir)
+	logger, err := bootstrap.NewLog(c.ENV, c.LogDir)
 	if err != nil {
 		log.Fatalln("Logfile error: ", err)
 	}
-
-	wrt := io.MultiWriter(os.Stdout, logfile)
-	log.SetOutput(wrt)
 
 	defer func() {
 		timeFinish := time.Since(now)
 		log.Println("Program is finished", timeFinish)
 
-		if err := logfile.Close(); err != nil {
+		if err := logger.Close(); err != nil {
 			log.Println("Logfile close error: ", err)
 		}
 	}()
@@ -75,8 +72,8 @@ func main() {
 
 	// services
 	storage := service.NewStorage(conn)
-	cloud := service.NewCloud(ctx, httpClient, cloudAuthData.Token, cloudAuthData.OwnerID)
-	encode := service.NewEncoder(ctx)
+	cloud := service.NewCloud(ctx, httpClient, cloudAuthData.Token, cloudAuthData.OwnerID, logger)
+	encode := service.NewEncoder(ctx, logger)
 
 	// interactors
 	channels := map[int]chan int{
@@ -90,7 +87,7 @@ func main() {
 
 	deadline := now.Add(time.Hour * time.Duration(c.Timeout))
 
-	vi := interactor.NewVideoCase(channels, c.ENV, c.Temp, storage, cloud, encode)
+	vi := interactor.NewVideoCase(channels, c.ENV, c.Temp, c.RmOriginal, c.SkipNotFull, storage, cloud, encode, logger)
 	go vi.Start(deadline)
 
 	// handle signals, channels
@@ -99,12 +96,12 @@ func main() {
 
 	select {
 	case sig := <-shutdown:
-		log.Printf("Внеплановое завершение программы по сигналу %d", sig)
+		logger.E(fmt.Sprintf("Внеплановое завершение программы по сигналу %d", sig))
 	case <-channels[domain.ChDone]:
-		log.Printf("Все обработчики завершили работу")
+		logger.E(fmt.Sprintf("Все обработчики завершили работу"))
 	}
 
-	log.Printf(`
+	logger.E(fmt.Sprintf(`
 	Получено видео: %d
 	Сконвертировано: %d
 	Ошибок конвертирования: %d
@@ -114,7 +111,7 @@ func main() {
 		result.Converted,
 		result.NotConverted,
 		result.Uploaded,
-		result.NotUploaded)
+		result.NotUploaded))
 
 	os.RemoveAll(c.Temp)
 }

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/pkg/errors"
-	"log"
 	"os/exec"
 	"path"
+	"videoconverter/bootstrap"
 	"videoconverter/domain"
 )
 
@@ -21,17 +21,19 @@ func (e cmdError) Error() string {
 
 type VideoEncoder struct {
 	ctx context.Context
+	l   *bootstrap.Logger
 }
 
-func NewEncoder(ctx context.Context) *VideoEncoder {
+func NewEncoder(ctx context.Context, l *bootstrap.Logger) *VideoEncoder {
 	return &VideoEncoder{
 		ctx: ctx,
+		l:   l,
 	}
 }
 
 // Convert a video from src to dst with q quality, return path to new video.
 func (e *VideoEncoder) Convert(tmp string, filePath string, quality domain.VQ) (string, error) {
-	log.Printf("Начинаю конвертировать файл %s в качество %d", filePath, quality)
+	fmt.Sprintf("Начинаю конвертировать файл %s в качество %d", filePath, quality)
 
 	_, fName := path.Split(filePath)
 	outVideo := fmt.Sprintf("%s/v-%d-%s", tmp, quality, fName)
@@ -63,13 +65,13 @@ func (e *VideoEncoder) Convert(tmp string, filePath string, quality domain.VQ) (
 		return "", errors.WithStack(cmdError{out, err})
 	}
 
-	log.Printf("Успешно сконвертировали файл %s в качество %d", filePath, quality)
+	fmt.Sprintf("Успешно сконвертировали файл %s в качество %d", filePath, quality)
 
 	return outVideo, nil
 }
 
 func (e *VideoEncoder) CreatePreview(tmp, filePath string) (string, error) {
-	log.Printf("Создается превью файла %s", filePath)
+	fmt.Sprintf("Создается превью файла %s", filePath)
 
 	_, fName := path.Split(filePath)
 	outVideo := fmt.Sprintf("%s/v-preview-%s", tmp, fName)
@@ -93,7 +95,7 @@ func (e *VideoEncoder) CreatePreview(tmp, filePath string) (string, error) {
 		return "", errors.WithStack(cmdError{out, err})
 	}
 
-	log.Printf("Успешно создано превью для файла %s", filePath)
+	fmt.Sprintf("Успешно создано превью для файла %s", filePath)
 
 	return outVideo, nil
 }

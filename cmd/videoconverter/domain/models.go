@@ -38,6 +38,14 @@ func (v *Video) IsFull() bool {
 		v.LinkPreview.String != ""
 }
 
+func (v *Video) IsHasAnyFormat() bool {
+	return v.Link1080.String != "" ||
+		v.Link720.String != "" ||
+		v.Link480.String != "" ||
+		v.Link360.String != "" ||
+		v.LinkPreview.String != ""
+}
+
 // QualityProperty describe property ids for every format of video in the database
 type QualityProperty struct {
 	ID1080    int64 `db:"id_1080"`

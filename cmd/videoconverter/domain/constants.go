@@ -1,6 +1,7 @@
 package domain
 
 const EnvProd = "prod"
+const EnvDebug = "debug"
 
 // CacheURL a basic url for all cache video
 const CacheURL = "https://cache-synergy.cdnvideo.ru/synergy/"
