@@ -111,7 +111,7 @@ func (s *Storage) InsertProperty(elementID int64, propertyID int64, value string
 
 	_, err = session.
 		InsertInto(
-			" ",
+			"b_iblock_element_property",
 		).
 		Columns(
 			"ID", "IBLOCK_PROPERTY_ID", "IBLOCK_ELEMENT_ID", "VALUE",

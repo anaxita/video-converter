@@ -42,11 +42,11 @@ func (l *Logger) Close() error {
 	return l.f.Close()
 }
 
-func (l *Logger) E(s string) {
+func (l *Logger) E(s ...string) {
 	b := &strings.Builder{}
 	b.WriteString(timeFormat())
 	b.WriteString(" [ERROR] ")
-	b.WriteString(s)
+	b.WriteString(strings.Join(s, " "))
 
 	l.f.WriteString(b.String())
 

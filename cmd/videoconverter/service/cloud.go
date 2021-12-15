@@ -79,9 +79,7 @@ func (c *Cloud) DownloadFile(u string, f *os.File) error {
 
 // UploadFile uploads a converted file to the cloud
 func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
-	var apiResponse struct {
-		DownloadUrl string `json:"download_url"`
-	}
+	apiResponse := make(map[string]interface{})
 
 	var body bytes.Buffer
 
@@ -141,7 +139,13 @@ func (c *Cloud) UploadFile(path string, f *os.File) (string, error) {
 		return "", errors.WithStack(err)
 	}
 
-	return "https://" + apiResponse.DownloadUrl, nil
+	u, ok := apiResponse["download_url"]
+
+	if !ok {
+		return "", errors.New(fmt.Sprintf("Не удалось получить ссылку из ответа. Тело ответа: %#v", apiResponse))
+	}
+
+	return "https://" + u.(string), nil
 }
 
 // Delete deletes a converted file from the cloud

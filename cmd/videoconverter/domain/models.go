@@ -39,11 +39,12 @@ func (v *Video) IsFull() bool {
 }
 
 func (v *Video) IsHasAnyFormat() bool {
-	return v.Link1080.String != "" ||
-		v.Link720.String != "" ||
-		v.Link480.String != "" ||
-		v.Link360.String != "" ||
-		v.LinkPreview.String != ""
+	return v.Link1080.Valid ||
+		v.Link1080.Valid ||
+		v.Link720.Valid ||
+		v.Link480.Valid ||
+		v.Link360.Valid ||
+		v.LinkPreview.Valid
 }
 
 // QualityProperty describe property ids for every format of video in the database

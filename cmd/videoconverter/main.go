@@ -19,8 +19,6 @@ import (
 )
 
 func main() {
-	log.Println("Program is started")
-
 	pathToConfig := flag.String("c", "./.env", "path to .env config")
 	flag.Parse()
 	now := time.Now()
@@ -42,9 +40,13 @@ func main() {
 		log.Fatalln("Logfile error: ", err)
 	}
 
+	if err = bootstrap.CheckFfmpegVersion(c.FfmpegVersion); err != nil {
+		log.Fatalln(fmt.Sprintf("Incorrect ffmpeg version.\nRequired %s.\nuse: apt install ffmpeg=%s -V", c.FfmpegVersion, c.FfmpegVersion))
+	}
+
 	defer func() {
 		timeFinish := time.Since(now)
-		log.Println("Program is finished", timeFinish)
+		logger.E(fmt.Sprintf("Program is finished %v", timeFinish))
 
 		if err := logger.Close(); err != nil {
 			log.Println("Logfile close error: ", err)

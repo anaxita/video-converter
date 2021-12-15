@@ -236,7 +236,10 @@ func (vc *VideoCase) process(v *domain.Video, q domain.VQ) (string, error) {
 
 	vc.ch[domain.ChUploaded] <- 1
 
-	eu, _ := url.Parse(u)
+	eu, err := url.Parse(u)
+	if err != nil {
+		return "", err
+	}
 
 	return eu.String(), nil
 }

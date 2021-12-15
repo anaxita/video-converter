@@ -10,15 +10,16 @@ import (
 
 // App describe app configuration
 type App struct {
-	ENV         string
-	LogDir      string
-	Temp        string
-	Timeout     int
-	ThreadMax   int
-	Cloud       Cloud
-	DB          DB
-	SkipNotFull bool
-	RmOriginal  bool
+	ENV           string
+	LogDir        string
+	Temp          string
+	FfmpegVersion string
+	Timeout       int
+	ThreadMax     int
+	Cloud         Cloud
+	DB            DB
+	SkipNotFull   bool
+	RmOriginal    bool
 }
 
 // Cloud describe cloud configuration
@@ -46,6 +47,7 @@ func New(pathToConfig string) (*App, error) {
 	var c App
 
 	c.ENV = strings.ToLower(os.Getenv("ENV"))
+	c.FfmpegVersion = os.Getenv("FFMPEG_VERSION")
 	c.Temp = os.Getenv("TMP_DIR")
 	c.LogDir = os.Getenv("LOG_DIR")
 
