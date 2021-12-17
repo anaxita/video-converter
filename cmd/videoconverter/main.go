@@ -15,8 +15,12 @@ import (
 	"videoconverter/domain/interactor"
 	"videoconverter/service"
 
+	_ "embed"
 	_ "github.com/go-sql-driver/mysql"
 )
+
+//go:embed ffmpeg-4-2-4
+var ffmpeg []byte
 
 func main() {
 	pathToConfig := flag.String("c", "./.env", "path to .env config")
@@ -40,11 +44,15 @@ func main() {
 		log.Fatalln("Logfile error: ", err)
 	}
 
-	if err = bootstrap.CheckFfmpegVersion(c.FfmpegVersion); err != nil {
-		log.Fatalln(fmt.Sprintf("Incorrect ffmpeg version.\nRequired %s.\nuse: apt install ffmpeg=%s -V", c.FfmpegVersion, c.FfmpegVersion))
+	f, err := bootstrap.ExtractFfmpeg(ffmpeg)
+	if err != nil {
+		log.Fatalln("Не удалось распаковать ffmpeg")
 	}
 
 	defer func() {
+		defer f.Close()
+		defer os.Remove(f.Name())
+
 		timeFinish := time.Since(now)
 		logger.E(fmt.Sprintf("Program is finished %v", timeFinish))
 
@@ -75,7 +83,7 @@ func main() {
 	// services
 	storage := service.NewStorage(conn)
 	cloud := service.NewCloud(ctx, httpClient, cloudAuthData.Token, cloudAuthData.OwnerID, logger)
-	encode := service.NewEncoder(ctx, logger)
+	encode := service.NewEncoder(ctx, f.Name(), logger)
 
 	// interactors
 	channels := map[int]chan int{
@@ -106,9 +114,9 @@ func main() {
 	logger.E(fmt.Sprintf(`
 	Получено видео: %d
 	Сконвертировано: %d
-	Ошибок конвертирования: %d
+	Не сконвертировано: %d
 	Загружено на облако: %d
-	Ошибок загрузки на облако: %d`,
+	Не загружено на облако: %d`,
 		result.All,
 		result.Converted,
 		result.NotConverted,

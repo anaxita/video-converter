@@ -2,24 +2,27 @@ package bootstrap
 
 import (
 	"github.com/pkg/errors"
-	"os/exec"
-	"strings"
+	"os"
 )
 
-func CheckFfmpegVersion(v string) error {
-	cmd := exec.Command(
-		"ffmpeg",
-		"-version",
-	)
-
-	out, err := cmd.Output()
+func ExtractFfmpeg(d []byte) (*os.File, error) {
+	f, err := os.Create("ffmpeg")
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if !strings.Contains(string(out), v) {
-		return errors.New("not compare versions")
+	if err := f.Chmod(os.FileMode(0766)); err != nil {
+		return nil, err
 	}
 
-	return nil
+	n, err := f.Write(d)
+	if err != nil {
+		return nil, err
+	}
+
+	if n != len(d) {
+		return nil, errors.Errorf("Распаковалось только %d байт из %d", n, len(d))
+	}
+
+	return f, nil
 }

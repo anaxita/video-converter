@@ -133,7 +133,7 @@ func (vc *VideoCase) Start(deadline time.Time) {
 // ProcessingVideo start the processing of one video,
 // delete original after processing
 func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video, cloudFile string) {
-	log.Println("Начинаю обработку видео с ID", v.ID)
+	vc.l.D(fmt.Sprintf("Начинаю обработку видео с ID %d", v.ID))
 
 	defer func() {
 		err := os.Remove(v.LocalPathOrig)

@@ -20,14 +20,16 @@ func (e cmdError) Error() string {
 }
 
 type VideoEncoder struct {
-	ctx context.Context
-	l   *bootstrap.Logger
+	ctx    context.Context
+	ffmpeg string
+	l      *bootstrap.Logger
 }
 
-func NewEncoder(ctx context.Context, l *bootstrap.Logger) *VideoEncoder {
+func NewEncoder(ctx context.Context, ffmpeg string, l *bootstrap.Logger) *VideoEncoder {
 	return &VideoEncoder{
-		ctx: ctx,
-		l:   l,
+		ctx:    ctx,
+		ffmpeg: ffmpeg,
+		l:      l,
 	}
 }
 
@@ -39,7 +41,7 @@ func (e *VideoEncoder) Convert(tmp string, filePath string, quality domain.VQ) (
 	outVideo := fmt.Sprintf("%s/v-%d-%s", tmp, quality, fName)
 
 	cmd := exec.CommandContext(e.ctx,
-		"ffmpeg",
+		e.ffmpeg,
 		"-y",
 		"-i",
 		filePath,
@@ -77,7 +79,7 @@ func (e *VideoEncoder) CreatePreview(tmp, filePath string) (string, error) {
 	outVideo := fmt.Sprintf("%s/v-preview-%s", tmp, fName)
 
 	cmd := exec.CommandContext(e.ctx,
-		"ffmpeg",
+		e.ffmpeg,
 		"-y",
 		"-ss",
 		"00:00:00",
