@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"github.com/pkg/errors"
 	"log"
 	"os"
 	"os/signal"
@@ -54,7 +55,7 @@ func main() {
 		defer os.Remove(f.Name())
 
 		timeFinish := time.Since(now)
-		logger.E(fmt.Sprintf("Program is finished %v", timeFinish))
+		logger.D(fmt.Sprintf("Program is finished %v", timeFinish))
 
 		if err := logger.Close(); err != nil {
 			log.Println("Logfile close error: ", err)
@@ -108,20 +109,22 @@ func main() {
 	case sig := <-shutdown:
 		logger.E(fmt.Sprintf("Внеплановое завершение программы по сигналу %d", sig))
 	case <-channels[domain.ChDone]:
-		logger.E(fmt.Sprintf("Все обработчики завершили работу"))
+		logger.D(fmt.Sprintf("Все обработчики завершили работу"))
 	}
 
-	logger.E(fmt.Sprintf(`
-	Получено видео: %d
-	Сконвертировано: %d
-	Не сконвертировано: %d
-	Загружено на облако: %d
-	Не загружено на облако: %d`,
-		result.All,
-		result.Converted,
-		result.NotConverted,
-		result.Uploaded,
-		result.NotUploaded))
+	if err := result.Error(); err != nil {
+		logger.E(fmt.Sprintf(`
+			Получено видео: %d
+			Сконвертировано: %d
+			Не сконвертировано: %d
+			Загружено на облако: %d
+			Не загружено на облако: %d`,
+			result.All,
+			result.Converted,
+			result.NotConverted,
+			result.Uploaded,
+			result.NotUploaded))
+	}
 
 	os.RemoveAll(c.Temp)
 }
@@ -132,6 +135,14 @@ type resultData struct {
 	NotConverted int
 	Uploaded     int
 	NotUploaded  int
+}
+
+func (r *resultData) Error() error {
+	if r.NotConverted > 0 || r.NotUploaded > 0 {
+		return errors.New("произошли ошибки обработки")
+	}
+
+	return nil
 }
 
 func listen(ctx context.Context, ch map[int]chan int, data *resultData) {

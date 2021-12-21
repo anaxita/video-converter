@@ -1,11 +1,9 @@
 package bootstrap
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strings"
-	"time"
 	"videoconverter/domain"
 )
 
@@ -21,10 +19,7 @@ func NewLog(env, logDir string) (*Logger, error) {
 		return nil, err
 	}
 
-	timeSting := time.Now().UTC().Format("2006-02-01-15-04-05")
-	logPath := fmt.Sprintf("%s/video-converter-%s.log", logDir, timeSting)
-
-	f, err := os.Create(logPath)
+	f, err := os.OpenFile(logDir+"/video-converter.log", os.O_CREATE|os.O_APPEND|os.O_RDWR, os.FileMode(0660))
 	if err != nil {
 		return nil, err
 	}
@@ -48,7 +43,7 @@ func (l *Logger) E(s ...string) {
 	b.WriteString(" [ERROR] ")
 	b.WriteString(strings.Join(s, " "))
 
-	l.f.WriteString(b.String())
+	l.f.WriteString(b.String() + "\n")
 
 	if l.env == domain.EnvDebug {
 		l.log.Println(b.String())

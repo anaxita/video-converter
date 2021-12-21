@@ -62,7 +62,7 @@ func (c *Cloud) DownloadFile(u string, f *os.File) error {
 	defer r.Body.Close()
 
 	if r.StatusCode != http.StatusOK {
-		return errors.WithMessagef(err, "reponse code is %d", r.StatusCode)
+		return errors.Errorf("reponse code is %d", r.StatusCode)
 	}
 
 	n, err := io.Copy(f, r.Body)

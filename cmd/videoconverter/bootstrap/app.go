@@ -92,5 +92,5 @@ func New(pathToConfig string) (*App, error) {
 }
 
 func timeFormat() string {
-	return time.Now().UTC().Format("2006-02-01 15:04:05")
+	return time.Now().Format("2006-02-01 15:04:05")
 }
