@@ -24,21 +24,31 @@ import (
 var ffmpeg []byte
 
 func main() {
+
 	pathToConfig := flag.String("c", "./.env", "path to .env config")
 	flag.Parse()
 	now := time.Now()
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	shutdown := make(chan os.Signal)
 	signal.Notify(shutdown, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGSTOP)
 	defer close(shutdown)
+
+	channels := map[int]chan int{
+		domain.ChDone:         make(chan int),
+		domain.ChAll:          make(chan int),
+		domain.ChConverted:    make(chan int),
+		domain.ChNotConverted: make(chan int),
+		domain.ChUploaded:     make(chan int),
+	}
 
 	// configs
 	c, err := bootstrap.New(*pathToConfig)
 	if err != nil {
 		log.Fatalln("Config load:", err)
 	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(c.Timeout))
+	defer cancel()
 
 	logger, err := bootstrap.NewLog(c.ENV, c.LogDir)
 	if err != nil {
@@ -51,8 +61,9 @@ func main() {
 	}
 
 	defer func() {
-		defer f.Close()
-		defer os.Remove(f.Name())
+		f.Close()
+		os.Remove(f.Name())
+		os.RemoveAll(c.Temp)
 
 		timeFinish := time.Since(now)
 		logger.D(fmt.Sprintf("Program is finished %v", timeFinish))
@@ -60,6 +71,10 @@ func main() {
 		if err := logger.Close(); err != nil {
 			log.Println("Logfile close error: ", err)
 		}
+
+		closeChannels(channels)
+
+		logger.Close()
 	}()
 
 	threadsCount := runtime.NumCPU()
@@ -87,29 +102,20 @@ func main() {
 	encode := service.NewEncoder(ctx, f.Name(), logger)
 
 	// interactors
-	channels := map[int]chan int{
-		domain.ChDone:         make(chan int),
-		domain.ChAll:          make(chan int),
-		domain.ChConverted:    make(chan int),
-		domain.ChNotConverted: make(chan int),
-		domain.ChUploaded:     make(chan int),
-	}
-	defer closeChannels(channels)
-
-	deadline := now.Add(time.Hour * time.Duration(c.Timeout))
-
 	vi := interactor.NewVideoCase(channels, c.ENV, c.Temp, c.RmOriginal, c.SkipNotFull, storage, cloud, encode, logger)
-	go vi.Start(deadline)
+	go vi.Start(ctx)
 
 	// handle signals, channels
 	var result resultData
 	go listen(ctx, channels, &result)
 
 	select {
+	case <-ctx.Done():
+		logger.D(fmt.Sprintf("Программа останавливливается по таймауту"))
 	case sig := <-shutdown:
 		logger.E(fmt.Sprintf("Внеплановое завершение программы по сигналу %d", sig))
 	case <-channels[domain.ChDone]:
-		logger.D(fmt.Sprintf("Все обработчики завершили работу"))
+		logger.D(fmt.Sprintf("Программа штатно завершилась"))
 	}
 
 	if err := result.Error(); err != nil {
@@ -125,8 +131,6 @@ func main() {
 			result.Uploaded,
 			result.NotUploaded))
 	}
-
-	os.RemoveAll(c.Temp)
 }
 
 type resultData struct {

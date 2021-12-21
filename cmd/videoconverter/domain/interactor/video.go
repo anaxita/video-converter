@@ -1,13 +1,13 @@
 package interactor
 
 import (
+	"context"
 	"fmt"
 	"net/url"
 	"os"
 	"path"
 	"strings"
 	"sync"
-	"time"
 	"videoconverter/bootstrap"
 	"videoconverter/domain"
 )
@@ -43,14 +43,11 @@ func NewVideoCase(ch map[int]chan int, env string, tmp string, isRmOrig bool, is
 }
 
 // Start starts the processing all videos case
-func (vc *VideoCase) Start(deadline time.Time) {
-	defer func() {
-		vc.ch[domain.ChDone] <- 1
-	}()
-
+func (vc *VideoCase) Start(ctx context.Context) {
 	videos, err := vc.db.Videos()
 	if err != nil {
 		vc.l.E("Get videos:", err.Error())
+		vc.ch[domain.ChDone] <- 1
 		return
 	}
 
@@ -58,75 +55,78 @@ func (vc *VideoCase) Start(deadline time.Time) {
 
 	var wg sync.WaitGroup
 
+loop:
 	for _, video := range videos {
-		now := time.Now()
-
-		if now.After(deadline) {
+		select {
+		case <-ctx.Done():
 			vc.l.D(fmt.Sprintln("Time is over."))
-			break
-		}
+			break loop
+		default:
 
-		v := video
+			v := video
 
-		if v.IsFull() {
-			vc.l.D(fmt.Sprintf("Видео %d имеет все форматы, пропускаю", v.ID))
-			continue
-		}
+			if v.IsFull() {
+				vc.l.D(fmt.Sprintf("Видео %d имеет все форматы, пропускаю", v.ID))
+				continue loop
+			}
 
-		if vc.skipNotFull && v.IsHasAnyFormat() {
-			vc.l.D(fmt.Sprintf("Проверьте видео %d, оно имеет один или несколько форматов, пропускаю", v.ID))
-			continue
-		}
+			if vc.skipNotFull && v.IsHasAnyFormat() {
+				vc.l.D(fmt.Sprintf("Проверьте видео %d, оно имеет один или несколько форматов, пропускаю", v.ID))
+				continue loop
+			}
 
-		if v.LinkOrig.String == "" {
-			vc.l.D(fmt.Sprintf("Видео %d имеет пустую ссылку на оригинал, пропускаю", v.ID))
-			continue
-		}
+			if v.LinkOrig.String == "" {
+				vc.l.D(fmt.Sprintf("Видео %d имеет пустую ссылку на оригинал, пропускаю", v.ID))
+				continue loop
+			}
 
-		escapedURL, err := url.PathUnescape(v.LinkOrig.String)
-		if err != nil {
-			vc.l.E(fmt.Sprintf("Не удалось экранировать URL %s\nПропускаю обработку", v.LinkOrig.String))
+			escapedURL, err := url.PathUnescape(v.LinkOrig.String)
+			if err != nil {
+				vc.l.E(fmt.Sprintf("Не удалось экранировать URL %s\nПропускаю обработку", v.LinkOrig.String))
 
-			continue
-		}
+				continue loop
+			}
 
-		cURL, err := url.Parse(v.LinkOrig.String)
-		if err != nil {
-			vc.l.E(fmt.Sprintf("Ссылка на оригинал не является валидным URL : %s", v.LinkOrig.String))
-			continue
-		}
+			cURL, err := url.Parse(v.LinkOrig.String)
+			if err != nil {
+				vc.l.E(fmt.Sprintf("Ссылка на оригинал не является валидным URL : %s", v.LinkOrig.String))
+				continue loop
+			}
 
-		cloudDir, cloudFile := path.Split(cURL.Path)
-		v.CloudDir = strings.ReplaceAll(cloudDir, "/synergy/", "")
-		v.FilenameOrig = domain.FormatFileName(cloudFile)
+			cloudDir, cloudFile := path.Split(cURL.Path)
+			v.CloudDir = strings.ReplaceAll(cloudDir, "/synergy/", "")
+			v.FilenameOrig = domain.FormatFileName(cloudFile)
 
-		f, err := os.Create(vc.tmp + "/" + v.FilenameOrig)
-		if err != nil {
-			vc.l.E(fmt.Sprintf("Create a temp file: %v", err))
-			continue
-		}
+			f, err := os.Create(vc.tmp + "/" + v.FilenameOrig)
+			if err != nil {
+				vc.l.E(fmt.Sprintf("Create a temp file: %v", err))
+				continue loop
+			}
 
-		vc.l.D(fmt.Sprintf("Загружаю оригинал видео ID %d по ссылке %s", v.ID, v.LinkOrig.String))
+			vc.l.D(fmt.Sprintf("Загружаю оригинал видео ID %d по ссылке %s", v.ID, v.LinkOrig.String))
 
-		err = vc.cloud.DownloadFile(v.LinkOrig.String, f)
-		if err != nil {
-			vc.l.E(fmt.Sprintf(" Ошибка загрузки ориганала ID %d по ссылке %s: %v", v.ID, v.LinkOrig.String, err))
+			err = vc.cloud.DownloadFile(v.LinkOrig.String, f)
+			if err != nil {
+				vc.l.E(fmt.Sprintf(" Ошибка загрузки ориганала ID %d по ссылке %s: %v", v.ID, v.LinkOrig.String, err))
+				f.Close()
+
+				continue loop
+			}
+
 			f.Close()
 
-			continue
+			v.LocalPathOrig = f.Name()
+
+			v.LinkOrig.String = escapedURL
+
+			wg.Add(1)
+			go vc.ProcessingVideo(&wg, &v, cloudFile)
 		}
-
-		f.Close()
-
-		v.LocalPathOrig = f.Name()
-
-		v.LinkOrig.String = escapedURL
-
-		wg.Add(1)
-		go vc.ProcessingVideo(&wg, &v, cloudFile)
 	}
 
 	wg.Wait()
+
+	vc.ch[domain.ChDone] <- 1
 }
 
 // ProcessingVideo start the processing of one video,
@@ -148,27 +148,27 @@ func (vc *VideoCase) ProcessingVideo(g *sync.WaitGroup, v *domain.Video, cloudFi
 	switch {
 	case v.Link1080.String == "":
 		wg.Add(1)
-		go vc.p1080(&wg, v)
+		vc.p1080(&wg, v)
 		fallthrough
 
 	case v.Link720.String == "":
 		wg.Add(1)
-		go vc.p720(&wg, v)
+		vc.p720(&wg, v)
 		fallthrough
 
 	case v.Link480.String == "":
 		wg.Add(1)
-		go vc.p480(&wg, v)
+		vc.p480(&wg, v)
 		fallthrough
 
 	case v.Link360.String == "":
 		wg.Add(1)
-		go vc.p360(&wg, v)
+		vc.p360(&wg, v)
 		fallthrough
 
 	case v.LinkPreview.String == "":
 		wg.Add(1)
-		go vc.pPreview(&wg, v)
+		vc.pPreview(&wg, v)
 	}
 
 	wg.Wait()

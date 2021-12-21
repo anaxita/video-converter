@@ -35,7 +35,7 @@ func NewEncoder(ctx context.Context, ffmpeg string, l *bootstrap.Logger) *VideoE
 
 // Convert a video from src to dst with q quality, return path to new video.
 func (e *VideoEncoder) Convert(tmp string, filePath string, quality domain.VQ) (string, error) {
-	fmt.Sprintf("Начинаю конвертировать файл %s в качество %d", filePath, quality)
+	e.l.D(fmt.Sprintf("Начинаю конвертировать файл %s в качество %d", filePath, quality))
 
 	_, fName := path.Split(filePath)
 	outVideo := fmt.Sprintf("%s/v-%d-%s", tmp, quality, fName)
@@ -67,13 +67,13 @@ func (e *VideoEncoder) Convert(tmp string, filePath string, quality domain.VQ) (
 		return "", errors.WithStack(cmdError{out, err})
 	}
 
-	fmt.Sprintf("Успешно сконвертировали файл %s в качество %d", filePath, quality)
+	e.l.D(fmt.Sprintf("Успешно сконвертировали файл %s в качество %d", filePath, quality))
 
 	return outVideo, nil
 }
 
 func (e *VideoEncoder) CreatePreview(tmp, filePath string) (string, error) {
-	fmt.Sprintf("Создается превью файла %s", filePath)
+	e.l.D(fmt.Sprintf("Создается превью файла %s", filePath))
 
 	_, fName := path.Split(filePath)
 	outVideo := fmt.Sprintf("%s/v-preview-%s", tmp, fName)
@@ -97,7 +97,7 @@ func (e *VideoEncoder) CreatePreview(tmp, filePath string) (string, error) {
 		return "", errors.WithStack(cmdError{out, err})
 	}
 
-	fmt.Sprintf("Успешно создано превью для файла %s", filePath)
+	e.l.D(fmt.Sprintf("Успешно создано превью для файла %s", filePath))
 
 	return outVideo, nil
 }
