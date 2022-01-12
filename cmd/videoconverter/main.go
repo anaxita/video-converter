@@ -24,12 +24,11 @@ import (
 var ffmpeg []byte
 
 func main() {
-
 	pathToConfig := flag.String("c", "./.env", "path to .env config")
 	flag.Parse()
 	now := time.Now()
 
-	shutdown := make(chan os.Signal)
+	shutdown := make(chan os.Signal, 0)
 	signal.Notify(shutdown, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGSTOP)
 	defer close(shutdown)
 
@@ -47,7 +46,7 @@ func main() {
 		log.Fatalln("Config load:", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Minute*time.Duration(c.Timeout))
+	ctx, cancel := context.WithTimeout(context.Background(), time.Hour*time.Duration(c.Timeout))
 	defer cancel()
 
 	logger, err := bootstrap.NewLog(c.ENV, c.LogDir)
@@ -84,7 +83,7 @@ func main() {
 
 	runtime.GOMAXPROCS(c.ThreadMax)
 
-	conn, err := bootstrap.Open(c.DB.Scheme, c.DB.Username, c.DB.Password, c.DB.Port, c.DB.Name)
+	conn, err := bootstrap.Open(c.DB)
 	if err != nil {
 		log.Fatalln("Database connection:", err)
 	}
@@ -99,7 +98,7 @@ func main() {
 	// services
 	storage := service.NewStorage(conn)
 	cloud := service.NewCloud(ctx, httpClient, cloudAuthData.Token, cloudAuthData.OwnerID, logger)
-	encode := service.NewEncoder(ctx, f.Name(), logger)
+	encode := service.NewEncoder(ctx, f.Name(), c.ThreadFfmpegMax, logger)
 
 	// interactors
 	vi := interactor.NewVideoCase(channels, c.ENV, c.Temp, c.RmOriginal, c.SkipNotFull, storage, cloud, encode, logger)

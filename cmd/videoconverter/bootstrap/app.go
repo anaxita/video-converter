@@ -10,16 +10,17 @@ import (
 
 // App describe app configuration
 type App struct {
-	ENV           string
-	LogDir        string
-	Temp          string
-	FfmpegVersion string
-	Timeout       int
-	ThreadMax     int
-	Cloud         Cloud
-	DB            DB
-	SkipNotFull   bool
-	RmOriginal    bool
+	ENV             string
+	LogDir          string
+	Temp            string
+	FfmpegVersion   string
+	Timeout         int
+	ThreadMax       int
+	ThreadFfmpegMax int
+	Cloud           Cloud
+	DB              DB
+	SkipNotFull     bool
+	RmOriginal      bool
 }
 
 // Cloud describe cloud configuration
@@ -32,6 +33,7 @@ type Cloud struct {
 type DB struct {
 	Scheme   string
 	Name     string
+	Host     string
 	Port     string
 	Username string
 	Password string
@@ -67,6 +69,12 @@ func New(pathToConfig string) (*App, error) {
 		return nil, err
 	}
 
+	threadFfmpegMax := os.Getenv("THREAD_FFMPEG_MAX")
+	c.ThreadFfmpegMax, err = strconv.Atoi(threadFfmpegMax)
+	if err != nil {
+		return nil, err
+	}
+
 	isSkippNotFull, err := strconv.ParseBool(os.Getenv("SKIP_NOT_FULL"))
 	if err != nil {
 		return nil, err
@@ -83,6 +91,7 @@ func New(pathToConfig string) (*App, error) {
 	c.Cloud.Password = os.Getenv("CLOUD_PASSWORD")
 
 	c.DB.Scheme = os.Getenv("DB_SCHEME")
+	c.DB.Host = os.Getenv("DB_HOST")
 	c.DB.Port = os.Getenv("DB_PORT")
 	c.DB.Name = os.Getenv("DB_NAME")
 	c.DB.Username = os.Getenv("DB_USERNAME")

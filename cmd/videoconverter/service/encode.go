@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"os/exec"
 	"path"
+	"strconv"
 	"videoconverter/bootstrap"
 	"videoconverter/domain"
 )
@@ -20,16 +21,18 @@ func (e cmdError) Error() string {
 }
 
 type VideoEncoder struct {
-	ctx    context.Context
-	ffmpeg string
-	l      *bootstrap.Logger
+	ctx       context.Context
+	ffmpeg    string
+	threadMax int
+	l         *bootstrap.Logger
 }
 
-func NewEncoder(ctx context.Context, ffmpeg string, l *bootstrap.Logger) *VideoEncoder {
+func NewEncoder(ctx context.Context, ffmpeg string, threadMax int, l *bootstrap.Logger) *VideoEncoder {
 	return &VideoEncoder{
-		ctx:    ctx,
-		ffmpeg: ffmpeg,
-		l:      l,
+		ctx:       ctx,
+		ffmpeg:    ffmpeg,
+		threadMax: threadMax,
+		l:         l,
 	}
 }
 
@@ -57,6 +60,8 @@ func (e *VideoEncoder) Convert(tmp string, filePath string, quality domain.VQ) (
 		"faster",
 		"-acodec",
 		"aac",
+		"-threads",
+		strconv.Itoa(e.threadMax),
 		"-filter:v",
 		fmt.Sprintf("scale=trunc(oh*a/2)*2:%d", quality),
 		outVideo,
@@ -81,6 +86,8 @@ func (e *VideoEncoder) CreatePreview(tmp, filePath string) (string, error) {
 	cmd := exec.CommandContext(e.ctx,
 		e.ffmpeg,
 		"-y",
+		"-threads",
+		strconv.Itoa(e.threadMax),
 		"-ss",
 		"00:00:00",
 		"-to",
