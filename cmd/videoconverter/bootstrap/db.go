@@ -5,9 +5,9 @@ import (
 	"github.com/gocraft/dbr"
 )
 
-func Open(scheme, username, password, port, name string) (*dbr.Connection, error) {
-	dsn := fmt.Sprintf("%s:%s@tcp(localhost:%s)/%s", username, password, port, name)
-	conn, err := dbr.Open(scheme, dsn, nil)
+func Open(c DB) (*dbr.Connection, error) {
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s", c.Username, c.Password, c.Host, c.Port, c.Name)
+	conn, err := dbr.Open(c.Scheme, dsn, nil)
 	if err != nil {
 		return nil, err
 	}
